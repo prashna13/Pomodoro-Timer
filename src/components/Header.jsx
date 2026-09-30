@@ -1,7 +1,7 @@
 import React from 'react';
 import { 
   Timer, BarChart2, Calendar, CheckSquare, Bell, 
-  Settings, HeartPulse, Palette, Flame, Droplets 
+  Settings, HeartPulse 
 } from 'lucide-react';
 
 export default function Header({
@@ -12,8 +12,7 @@ export default function Header({
   onOpenSettings,
   onOpenWellnessModal,
   wellnessTimeRemaining,
-  requestNotifications,
-  onThemeChange
+  requestNotifications
 }) {
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60);
@@ -21,29 +20,23 @@ export default function Header({
     return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const focusHours = (stats.focusMinutes / 60).toFixed(1);
-
   return (
-    <header className="bg-stone-950/80 backdrop-blur-xl border-b border-white/10 sticky top-0 z-40 px-4 lg:px-8 py-3 transition-colors duration-500">
+    <header className="sticky top-0 z-40 px-4 lg:px-10 py-4 backdrop-blur-md bg-[#FDFBF7]/80 border-b border-[#EBE4D8]/80 transition-colors">
       <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
         
-        {/* Flocus Brand Logo */}
+        {/* Flocus Logo & Subtitle */}
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-600 p-0.5 shadow-lg shadow-amber-500/20 flex items-center justify-center">
-            <div className="w-full h-full bg-stone-950 rounded-[14px] flex items-center justify-center">
-              <Timer className="w-5 h-5 text-amber-400" />
-            </div>
+          <div className="w-10 h-10 rounded-full border border-[#D8C3B0] bg-[#FAF5EE] flex items-center justify-center shadow-sm">
+            <Timer className="w-5 h-5 text-[#2C4639]" />
           </div>
           <div>
-            <h1 className="text-xl font-bold text-white tracking-tight flex items-center gap-2">
-              Flocus <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30 font-semibold uppercase tracking-wider">1.5h Cozy Mode</span>
-            </h1>
-            <p className="text-[11px] text-stone-400">Minimalist Deep Work & Health Companion</p>
+            <h1 className="text-xl font-extrabold text-[#2C4639] tracking-tight">Flocus</h1>
+            <p className="text-xs text-[#7A8A80] font-medium">Minimalist Deep Work & Health Companion</p>
           </div>
         </div>
 
-        {/* Flocus Navigation Tabs */}
-        <div className="flex items-center gap-1 bg-stone-900/90 p-1.5 rounded-2xl border border-white/10 shadow-inner">
+        {/* Center Pill Navigation Bar */}
+        <div className="flex items-center gap-1 bg-[#EFE7DC]/90 p-1.5 rounded-2xl border border-[#E0D5C5] shadow-inner">
           {[
             { id: 'timer', label: 'Timer', icon: Timer },
             { id: 'dashboard', label: 'Insights', icon: BarChart2 },
@@ -56,10 +49,10 @@ export default function Header({
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                className={`px-4 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-amber-500 text-stone-950 shadow-md shadow-amber-500/20 font-bold'
-                    : 'text-stone-400 hover:text-stone-100 hover:bg-stone-800/60'
+                    ? 'bg-[#68809A] text-white shadow-md font-bold'
+                    : 'text-[#6A7B70] hover:text-[#2C4639] hover:bg-[#E4D9C9]/50'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -69,41 +62,39 @@ export default function Header({
           })}
         </div>
 
-        {/* Quick Actions & Wellness Pill */}
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-          
-          {/* Micro Break Countdown Pill */}
+        {/* Right Status Controls */}
+        <div className="flex items-center gap-2.5">
+          {/* Health Prompt Pill */}
           <button
             onClick={onOpenWellnessModal}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-300 text-xs font-semibold transition-all cursor-pointer group"
-            title="40-min Micro Break Health Prompt"
+            className="flex items-center gap-2 px-3.5 py-1.5 rounded-2xl bg-[#98B89F]/30 hover:bg-[#98B89F]/40 border border-[#85A68C]/50 text-[#1C3626] text-xs font-bold transition-all cursor-pointer"
+            title="40-min Micro Break Prompt"
           >
-            <HeartPulse className="w-4 h-4 text-emerald-400 group-hover:scale-110 transition-transform" />
-            <span>Health Prompt: <strong className="text-emerald-200">{formatTime(wellnessTimeRemaining)}</strong></span>
+            <HeartPulse className="w-4 h-4 text-[#2C523A]" />
+            <span>Health Prompt: <strong>{formatTime(wellnessTimeRemaining)}</strong></span>
           </button>
 
-          {/* Notifications Toggle */}
+          {/* Notifications Button */}
           <button
             onClick={requestNotifications}
             className={`p-2 rounded-xl border transition-all cursor-pointer ${
               settings.notificationsEnabled
-                ? 'bg-amber-500/20 border-amber-500/50 text-amber-300'
-                : 'bg-stone-900 border-white/10 text-stone-400 hover:text-stone-200'
+                ? 'bg-[#68809A]/20 border-[#68809A]/40 text-[#405870]'
+                : 'bg-[#A8C5D6]/30 border-[#94B3C5]/50 text-[#304B5C] hover:bg-[#A8C5D6]/50'
             }`}
-            title="Desktop Notifications"
+            title="Notifications"
           >
             <Bell className="w-4 h-4" />
           </button>
 
-          {/* Settings Modal Launcher */}
+          {/* Settings Button */}
           <button
             onClick={onOpenSettings}
-            className="p-2 rounded-xl bg-stone-900 border border-white/10 text-stone-400 hover:text-stone-200 hover:bg-stone-800 transition-all cursor-pointer"
-            title="Preferences"
+            className="p-2 rounded-xl bg-[#D8C5B4]/40 border border-[#C6B09E]/50 text-[#544336] hover:bg-[#D8C5B4]/60 transition-all cursor-pointer"
+            title="Settings"
           >
             <Settings className="w-4 h-4" />
           </button>
-
         </div>
 
       </div>
