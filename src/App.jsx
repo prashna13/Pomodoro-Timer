@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import PomodoroTimer from './components/PomodoroTimer';
 import WellnessReminder from './components/WellnessReminder';
 import TodoList from './components/TodoList';
 import SettingsModal from './components/SettingsModal';
+import AnalyticsDashboard from './components/AnalyticsDashboard';
+import CalendarView from './components/CalendarView';
 import { playSound } from './utils/audio';
 import confetti from 'canvas-confetti';
 
@@ -12,15 +14,21 @@ import {
   saveStoredTasks,
   loadStoredSettings,
   saveStoredSettings,
-  loadStoredStats,
-  saveStoredStats
+  loadStoredHistory,
+  saveStoredHistory,
+  getTodayStats,
+  updateTodayStatsInHistory
 } from './utils/storage';
 
 export default function App() {
-  // App Persistent State
+  // Main Flocus State
   const [tasks, setTasks] = useState(loadStoredTasks);
   const [settings, setSettings] = useState(loadStoredSettings);
-  const [stats, setStats] = useState(loadStoredStats);
+  const [history, setHistory] = useState(loadStoredHistory);
+  const [activeTab, setActiveTab] = useState('timer'); // 'timer' | 'dashboard' | 'calendar' | 'tasks'
+
+  // Today's Stats extracted from History
+  const todayStats = getTodayStats(history, settings.targetFocusHours);
 
   // Timer State
   const [mode, setMode] = useState('work'); // 'work' | 'shortBreak' | 'longBreak'
@@ -33,22 +41,26 @@ export default function App() {
   const [wellnessTimeLeft, setWellnessTimeLeft] = useState(settings.wellnessIntervalMinutes * 60);
   const [isWellnessModalOpen, setIsWellnessModalOpen] = useState(false);
 
-  // Modals State
+  // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Apply Flocus theme class to body
+  useEffect(() => {
+    document.body.className = `theme-${settings.theme || 'cozy-dark'}`;
+  }, [settings.theme]);
 
   // Save changes to local storage when state updates
   useEffect(() => { saveStoredTasks(tasks); }, [tasks]);
   useEffect(() => { saveStoredSettings(settings); }, [settings]);
-  useEffect(() => { saveStoredStats(stats); }, [stats]);
+  useEffect(() => { saveStoredHistory(history); }, [history]);
 
-  // Request browser desktop notification permission
   const requestNotifications = () => {
     if ('Notification' in window) {
       Notification.requestPermission().then((perm) => {
         if (perm === 'granted') {
           setSettings(prev => ({ ...prev, notificationsEnabled: true }));
-          new Notification('FocusFlow 1.5 Active', {
-            body: 'Desktop notifications enabled for 90-min work blocks and 40-min wellness reminders!'
+          new Notification('Flocus Activated', {
+            body: 'Desktop notifications enabled for 90-min work blocks and 40-min health prompts!'
           });
         }
       });
@@ -57,8 +69,16 @@ export default function App() {
 
   const sendDesktopNotification = (title, body) => {
     if ('Notification' in window && Notification.permission === 'granted' && settings.notificationsEnabled) {
-      new Notification(title, { body, icon: '/favicon.ico' });
+      new Notification(title, { body });
     }
+  };
+
+  // Helper to update today's stats in multi-day history
+  const handleUpdateTodayStats = (updater) => {
+    const currentToday = getTodayStats(history, settings.targetFocusHours);
+    const updated = typeof updater === 'function' ? updater(currentToday) : updater;
+    const newHistory = updateTodayStatsInHistory(history, updated);
+    setHistory(newHistory);
   };
 
   // Main Timer Tick Interval
@@ -73,21 +93,19 @@ export default function App() {
         if (mode === 'work') {
           setWellnessTimeLeft((prev) => {
             if (prev <= 1) {
-              // Trigger 40-min wellness alert!
               playSound('wellness_alert');
               sendDesktopNotification(
-                '🧘 Micro-Break Time! (40 mins elapsed)',
-                'Time to stretch your body, drink a glass of water, and look outside for 20 seconds!'
+                '🧘 Micro-Break Prompt (40 mins elapsed)',
+                'Time to stretch your body, drink water, and look outside for 20s!'
               );
               setIsWellnessModalOpen(true);
-              return settings.wellnessIntervalMinutes * 60; // Reset countdown
+              return settings.wellnessIntervalMinutes * 60;
             }
             return prev - 1;
           });
         }
       }, 1000);
     } else if (isRunning && timeLeft === 0) {
-      // Session Completed!
       handleSessionCompleted();
     }
 
@@ -103,14 +121,14 @@ export default function App() {
 
       const workedMins = Math.round(totalDuration / 60);
 
-      // Update today's stats
-      setStats((prev) => ({
+      // Update today's stats in history
+      handleUpdateTodayStats((prev) => ({
         ...prev,
-        completedSessions: prev.completedSessions + 1,
-        totalFocusMinutes: prev.totalFocusMinutes + workedMins
+        completedSessions: (prev.completedSessions || 0) + 1,
+        focusMinutes: (prev.focusMinutes || 0) + workedMins
       }));
 
-      // Update active task progress if set
+      // Update active task progress
       if (activeTaskId) {
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
@@ -123,10 +141,9 @@ export default function App() {
 
       sendDesktopNotification(
         '🎉 Deep Work Block Completed!',
-        `Awesome job completing your ${workedMins}-minute session. Take a break!`
+        `Fantastic job completing your ${workedMins}-minute session. Time to rest!`
       );
 
-      // Auto switch to break
       switchMode('shortBreak', settings.shortBreakMinutes);
     } else {
       playSound('break_end');
@@ -156,24 +173,17 @@ export default function App() {
   };
 
   const handleSkipTimer = () => {
-    if (mode === 'work') {
-      switchMode('shortBreak', settings.shortBreakMinutes);
-    } else {
-      switchMode('work', settings.workMinutes);
-    }
+    if (mode === 'work') switchMode('shortBreak', settings.shortBreakMinutes);
+    else switchMode('work', settings.workMinutes);
   };
 
-  // Task Operations
-  const handleAddTask = (newTask) => {
-    setTasks([newTask, ...tasks]);
-  };
-
+  // Task Handlers
+  const handleAddTask = (newTask) => setTasks([newTask, ...tasks]);
   const handleToggleTask = (id) => {
     setTasks((prev) =>
       prev.map((t) => (t.id === id ? { ...t, completed: !t.completed } : t))
     );
   };
-
   const handleDeleteTask = (id) => {
     setTasks((prev) => prev.filter((t) => t.id !== id));
     if (activeTaskId === id) setActiveTaskId(null);
@@ -182,69 +192,108 @@ export default function App() {
   const activeTask = tasks.find((t) => t.id === activeTaskId);
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen flex flex-col font-sans transition-colors duration-500">
       
-      {/* Top Navigation Bar */}
+      {/* Header */}
       <Header
-        stats={stats}
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        stats={todayStats}
         settings={settings}
         onOpenSettings={() => setIsSettingsOpen(true)}
         onOpenWellnessModal={() => setIsWellnessModalOpen(true)}
         wellnessTimeRemaining={wellnessTimeLeft}
         requestNotifications={requestNotifications}
+        onThemeChange={(theme) => setSettings({ ...settings, theme })}
       />
 
-      {/* Main Container */}
-      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+      {/* Main Content Body */}
+      <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         
-        {/* Left Column: Pomodoro Timer */}
-        <div className="lg:col-span-7 space-y-6">
-          <PomodoroTimer
-            mode={mode}
-            setMode={(m, mins) => switchMode(m, mins)}
-            timeLeft={timeLeft}
-            totalDuration={totalDuration}
-            isRunning={isRunning}
-            onToggleTimer={handleToggleTimer}
-            onResetTimer={handleResetTimer}
-            onSkipTimer={handleSkipTimer}
-            activeTask={activeTask}
-            settings={settings}
-            onCompleteCurrentTask={(id) => handleToggleTask(id, false)}
-          />
-        </div>
+        {/* Tab 1: Main Timer View */}
+        {activeTab === 'timer' && (
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+            <div className="lg:col-span-7">
+              <PomodoroTimer
+                mode={mode}
+                setMode={(m, mins) => switchMode(m, mins)}
+                timeLeft={timeLeft}
+                totalDuration={totalDuration}
+                isRunning={isRunning}
+                onToggleTimer={handleToggleTimer}
+                onResetTimer={handleResetTimer}
+                onSkipTimer={handleSkipTimer}
+                activeTask={activeTask}
+                settings={settings}
+                onCompleteCurrentTask={(id) => handleToggleTask(id, false)}
+                todayStats={todayStats}
+              />
+            </div>
 
-        {/* Right Column: Todo & Reminders List */}
-        <div className="lg:col-span-5 h-full">
-          <TodoList
-            tasks={tasks}
-            onAddTask={handleAddTask}
-            onToggleTask={handleToggleTask}
-            onDeleteTask={handleDeleteTask}
-            onSetActiveTask={(id) => setActiveTaskId(id)}
-            activeTaskId={activeTaskId}
+            <div className="lg:col-span-5">
+              <TodoList
+                tasks={tasks}
+                onAddTask={handleAddTask}
+                onToggleTask={handleToggleTask}
+                onDeleteTask={handleDeleteTask}
+                onSetActiveTask={(id) => setActiveTaskId(id)}
+                activeTaskId={activeTaskId}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Tab 2: Dashboard & Insights View */}
+        {activeTab === 'dashboard' && (
+          <AnalyticsDashboard
+            history={history}
+            todayStats={todayStats}
+            settings={settings}
+            onUpdateTargetHours={(targetFocusHours) => {
+              setSettings({ ...settings, targetFocusHours });
+            }}
           />
-        </div>
+        )}
+
+        {/* Tab 3: Interactive Calendar View */}
+        {activeTab === 'calendar' && (
+          <CalendarView
+            history={history}
+            settings={settings}
+          />
+        )}
+
+        {/* Tab 4: Full-width Tasks View */}
+        {activeTab === 'tasks' && (
+          <div className="max-w-4xl mx-auto">
+            <TodoList
+              tasks={tasks}
+              onAddTask={handleAddTask}
+              onToggleTask={handleToggleTask}
+              onDeleteTask={handleDeleteTask}
+              onSetActiveTask={(id) => setActiveTaskId(id)}
+              activeTaskId={activeTaskId}
+            />
+          </div>
+        )}
 
       </main>
 
-      {/* 40-Minute Micro-Break Prompt Modal */}
+      {/* Modals */}
       <WellnessReminder
         isOpen={isWellnessModalOpen}
         onClose={() => setIsWellnessModalOpen(false)}
-        stats={stats}
-        onUpdateStats={setStats}
+        stats={todayStats}
+        onUpdateStats={(newTodayStats) => handleUpdateTodayStats(newTodayStats)}
         settings={settings}
       />
 
-      {/* Preferences & Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}
         settings={settings}
         onSaveSettings={(newSettings) => {
           setSettings(newSettings);
-          // If work minutes changed, update current timer if reset
           if (!isRunning && mode === 'work') {
             const newSecs = newSettings.workMinutes * 60;
             setTimeLeft(newSecs);
@@ -253,9 +302,8 @@ export default function App() {
         }}
       />
 
-      {/* Footer */}
-      <footer className="py-4 text-center text-xs text-slate-500 border-t border-slate-900 mt-auto">
-        FocusFlow 1.5h Deep Work & Wellness • Optimized for daily focus blocks & 40-min health reminders
+      <footer className="py-4 text-center text-xs text-stone-500 border-t border-white/5 mt-auto">
+        Flocus • Aesthetic 1.5h Deep Work Timer, Dashboard Analytics & 40-min Health Prompts
       </footer>
 
     </div>
