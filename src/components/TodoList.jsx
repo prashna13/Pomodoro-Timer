@@ -60,10 +60,18 @@ export default function TodoList({
   const filteredTasks = tasks.filter((task) => {
     if (filter === 'today') return task.dueDate === todayStr && !task.completed;
     if (filter === 'work') return task.category === 'Work' && !task.completed;
+    if (filter === 'study') return task.category === 'Study' && !task.completed;
     if (filter === 'personal') return task.category === 'Personal' && !task.completed;
     if (filter === 'completed') return task.completed;
     return true;
   });
+
+  const categoryBadgeColors = {
+    Work: 'bg-[#2C4639]',
+    Study: 'bg-[#68809A]',
+    Personal: 'bg-[#D87A56]',
+    Health: 'bg-[#8FA88B]'
+  };
 
   return (
     <div className="flocus-card p-6 lg:p-8 relative overflow-hidden bg-white/95 shadow-xl flex flex-col h-full">
@@ -74,7 +82,7 @@ export default function TodoList({
         <span className="text-xs text-[#8A7B6E] font-serif italic">Have a good day!</span>
       </div>
 
-      {/* Header matching screenshot */}
+      {/* Header */}
       <div className="flex items-center justify-between gap-4 mb-5">
         <div>
           <h2 className="text-xl font-extrabold text-[#2C4639] flex items-center gap-2">
@@ -100,7 +108,7 @@ export default function TodoList({
             <input
               type="text"
               required
-              placeholder="e.g. Design app architecture (90m block)"
+              placeholder="e.g. Study Operating Systems (90m block)"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               className="w-full px-3 py-2 rounded-xl bg-white border border-[#D5C9BB] text-[#2C4639] placeholder-stone-400 text-sm focus:outline-none focus:border-[#D87A56]"
@@ -116,9 +124,9 @@ export default function TodoList({
                 className="w-full px-3 py-2 rounded-xl bg-white border border-[#D5C9BB] text-[#2C4639] text-xs focus:outline-none"
               >
                 <option value="Work">💻 Work</option>
+                <option value="Study">📚 Study</option>
                 <option value="Personal">🏠 Personal</option>
                 <option value="Health">🧘 Health</option>
-                <option value="Study">📚 Study</option>
               </select>
             </div>
 
@@ -166,19 +174,20 @@ export default function TodoList({
         </form>
       )}
 
-      {/* Filter Tabs matching screenshot */}
+      {/* Filter Tabs including Work, Study, Personal */}
       <div className="flex items-center gap-1 overflow-x-auto pb-2 mb-4 scrollbar-none border-b border-[#EBE4D8] text-xs font-bold">
         {[
           { id: 'all', label: 'All Tasks' },
           { id: 'today', label: 'Due Today' },
           { id: 'work', label: '💻 Work' },
+          { id: 'study', label: '📚 Study' },
           { id: 'personal', label: '🏠 Personal' },
           { id: 'completed', label: '✅ Done' }
         ].map((tab) => (
           <button
             key={tab.id}
             onClick={() => setFilter(tab.id)}
-            className={`px-3.5 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
+            className={`px-3 py-1.5 rounded-xl whitespace-nowrap transition-all cursor-pointer ${
               filter === tab.id
                 ? 'bg-[#F7ECE1] text-[#D87A56] border border-[#EADBCE] font-extrabold shadow-xs'
                 : 'text-[#7A8A80] hover:text-[#2C4639] hover:bg-[#F5EFE6]'
@@ -189,7 +198,7 @@ export default function TodoList({
         ))}
       </div>
 
-      {/* Task Item Cards matching reference screenshot */}
+      {/* Task Item Cards */}
       <div className="space-y-3 flex-1 overflow-y-auto max-h-[460px] pr-1 relative z-10">
         {filteredTasks.length === 0 ? (
           <div className="text-center py-12 border-2 border-dashed border-[#E5DDD0] rounded-2xl bg-[#FAF5EE]/50">
@@ -199,6 +208,7 @@ export default function TodoList({
         ) : (
           filteredTasks.map((task) => {
             const isActive = activeTaskId === task.id;
+            const badgeBg = categoryBadgeColors[task.category] || 'bg-[#2C4639]';
 
             return (
               <div
@@ -233,9 +243,9 @@ export default function TodoList({
                       </span>
                     </div>
 
-                    {/* Category & Priority Badges matching screenshot */}
+                    {/* Category & Priority Badges */}
                     <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className="px-2 py-0.5 rounded-md bg-[#2C4639] text-white text-[10px] font-extrabold uppercase tracking-wider">
+                      <span className={`px-2 py-0.5 rounded-md ${badgeBg} text-white text-[10px] font-extrabold uppercase tracking-wider`}>
                         {task.category}
                       </span>
 
@@ -246,7 +256,7 @@ export default function TodoList({
                       </span>
                     </div>
 
-                    {/* Blocks & Date info matching screenshot */}
+                    {/* Blocks & Date info */}
                     <div className="flex items-center gap-3 mt-2 text-xs text-[#7A6B5D] font-medium">
                       <span className="flex items-center gap-1">
                         🍅 {task.completedPomodoros}/{task.estimatedPomodoros} blocks
@@ -261,7 +271,7 @@ export default function TodoList({
                   </div>
                 </div>
 
-                {/* Right side: Focus This button matching screenshot */}
+                {/* Right side: Focus This button */}
                 <div className="flex items-center gap-2 shrink-0 self-end sm:self-center">
                   {!task.completed && (
                     <button
