@@ -1,11 +1,12 @@
 import React from 'react';
-import { X, Settings, Volume2, Clock, Droplets, HeartPulse } from 'lucide-react';
+import { X, Settings, Volume2, Clock, Droplets, HeartPulse, RefreshCw } from 'lucide-react';
 
 export default function SettingsModal({
   isOpen,
   onClose,
   settings,
-  onSaveSettings
+  onSaveSettings,
+  onResetInsights
 }) {
   if (!isOpen) return null;
 
@@ -116,9 +117,25 @@ export default function SettingsModal({
             />
           </div>
 
+          {/* Reset Insights Data Button */}
+          <div className="pt-2 border-t border-[#EBE4D8]">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.confirm('Reset all focus hours and insights data back to 0?')) {
+                  onResetInsights();
+                  onClose();
+                }
+              }}
+              className="w-full py-2 px-3 rounded-xl border border-rose-300 text-rose-600 hover:bg-rose-50 text-xs font-extrabold flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+            >
+              <RefreshCw className="w-3.5 h-3.5" /> Reset All Insights & History to 0
+            </button>
+          </div>
+
         </div>
 
-        <div className="mt-8 pt-4 border-t border-[#EBE4D8] flex justify-end">
+        <div className="mt-6 pt-4 border-t border-[#EBE4D8] flex justify-end">
           <button
             onClick={onClose}
             className="px-5 py-2 rounded-xl bg-[#D87A56] hover:bg-[#C56845] text-white font-extrabold text-xs cursor-pointer shadow-md"

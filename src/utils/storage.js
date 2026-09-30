@@ -1,6 +1,6 @@
-const STORAGE_KEY_TASKS = 'flocus_tasks_v2';
-const STORAGE_KEY_SETTINGS = 'flocus_settings_v2';
-const STORAGE_KEY_HISTORY = 'flocus_history_v2';
+const STORAGE_KEY_TASKS = 'flocus_tasks_v3';
+const STORAGE_KEY_SETTINGS = 'flocus_settings_v3';
+const STORAGE_KEY_HISTORY = 'flocus_history_v3';
 
 export const DEFAULT_SETTINGS = {
   workMinutes: 90, // Default 1.5 hours
@@ -12,51 +12,15 @@ export const DEFAULT_SETTINGS = {
   soundEnabled: true,
   dailyWaterGoal: 8,
   notificationsEnabled: false,
-  theme: 'cozy-dark' // 'cozy-dark' | 'zen-midnight' | 'serene-forest' | 'warm-sunset'
 };
 
 export function getTodayDateString() {
   return new Date().toISOString().split('T')[0];
 }
 
-// Helper to generate seed history for the past 14 days so user can see dashboard & calendar insights immediately
+// Clean fresh history state (0 focus hours, 0 streak, 0 stats)
 function getInitialHistory() {
-  const history = {};
-  const today = new Date();
-
-  // Seed sample realistic focus logs for the last 14 days
-  const sampleData = [
-    { daysAgo: 0, mins: 180, sessions: 2, water: 5, stretches: 3 },
-    { daysAgo: 1, mins: 270, sessions: 3, water: 8, stretches: 5 },
-    { daysAgo: 2, mins: 360, sessions: 4, water: 7, stretches: 6 },
-    { daysAgo: 3, mins: 180, sessions: 2, water: 4, stretches: 2 },
-    { daysAgo: 4, mins: 270, sessions: 3, water: 8, stretches: 4 },
-    { daysAgo: 5, mins: 90,  sessions: 1, water: 3, stretches: 1 },
-    { daysAgo: 6, mins: 315, sessions: 3, water: 6, stretches: 4 },
-    { daysAgo: 7, mins: 270, sessions: 3, water: 8, stretches: 5 },
-    { daysAgo: 8, mins: 225, sessions: 2, water: 5, stretches: 3 },
-    { daysAgo: 9, mins: 360, sessions: 4, water: 8, stretches: 6 },
-    { daysAgo: 10, mins: 180, sessions: 2, water: 4, stretches: 2 },
-    { daysAgo: 11, mins: 270, sessions: 3, water: 7, stretches: 4 },
-    { daysAgo: 12, mins: 0,   sessions: 0, water: 2, stretches: 0 },
-    { daysAgo: 13, mins: 270, sessions: 3, water: 8, stretches: 5 }
-  ];
-
-  sampleData.forEach(({ daysAgo, mins, sessions, water, stretches }) => {
-    const d = new Date(today);
-    d.setDate(d.getDate() - daysAgo);
-    const dateStr = d.toISOString().split('T')[0];
-    history[dateStr] = {
-      date: dateStr,
-      focusMinutes: mins,
-      completedSessions: sessions,
-      waterGlasses: water,
-      stretchesCompleted: stretches,
-      targetMinutes: 270 // 4.5h
-    };
-  });
-
-  return history;
+  return {};
 }
 
 export const INITIAL_TASKS = [
@@ -65,7 +29,7 @@ export const INITIAL_TASKS = [
     title: 'Complete 1.5hr Deep Work block on core module',
     category: 'Work',
     estimatedPomodoros: 2,
-    completedPomodoros: 1,
+    completedPomodoros: 0,
     completed: false,
     priority: 'high',
     dueDate: getTodayDateString(),
@@ -122,6 +86,10 @@ export function saveStoredSettings(settings) {
 
 export function loadStoredHistory() {
   try {
+    // Clear old seeded v2 data if present to ensure 100% fresh start for user
+    localStorage.removeItem('flocus_history_v2');
+    localStorage.removeItem('flocus_tasks_v2');
+
     const raw = localStorage.getItem(STORAGE_KEY_HISTORY);
     if (!raw) return getInitialHistory();
     return JSON.parse(raw);
@@ -134,6 +102,13 @@ export function saveStoredHistory(history) {
   try {
     localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(history));
   } catch (e) {}
+}
+
+export function resetAllHistory() {
+  try {
+    localStorage.removeItem(STORAGE_KEY_HISTORY);
+  } catch (e) {}
+  return {};
 }
 
 export function getTodayStats(history, targetFocusHours) {

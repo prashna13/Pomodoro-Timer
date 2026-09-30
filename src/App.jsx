@@ -16,40 +16,31 @@ import {
   saveStoredSettings,
   loadStoredHistory,
   saveStoredHistory,
+  resetAllHistory,
   getTodayStats,
   updateTodayStatsInHistory
 } from './utils/storage';
 
 export default function App() {
-  // Main Flocus State
   const [tasks, setTasks] = useState(loadStoredTasks);
   const [settings, setSettings] = useState(loadStoredSettings);
   const [history, setHistory] = useState(loadStoredHistory);
-  const [activeTab, setActiveTab] = useState('timer'); // 'timer' | 'dashboard' | 'calendar' | 'tasks'
+  const [activeTab, setActiveTab] = useState('timer');
 
-  // Today's Stats extracted from History
   const todayStats = getTodayStats(history, settings.targetFocusHours);
 
   // Timer State
-  const [mode, setMode] = useState('work'); // 'work' | 'shortBreak' | 'longBreak'
+  const [mode, setMode] = useState('work');
   const [timeLeft, setTimeLeft] = useState(settings.workMinutes * 60);
   const [totalDuration, setTotalDuration] = useState(settings.workMinutes * 60);
   const [isRunning, setIsRunning] = useState(false);
   const [activeTaskId, setActiveTaskId] = useState(null);
 
-  // 40-Min Micro-Break Health Counter (in seconds)
+  // 40-Min Health Counter
   const [wellnessTimeLeft, setWellnessTimeLeft] = useState(settings.wellnessIntervalMinutes * 60);
   const [isWellnessModalOpen, setIsWellnessModalOpen] = useState(false);
-
-  // Modals
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-  // Apply Flocus theme class to body
-  useEffect(() => {
-    document.body.className = `theme-${settings.theme || 'cozy-dark'}`;
-  }, [settings.theme]);
-
-  // Save changes to local storage when state updates
   useEffect(() => { saveStoredTasks(tasks); }, [tasks]);
   useEffect(() => { saveStoredSettings(settings); }, [settings]);
   useEffect(() => { saveStoredHistory(history); }, [history]);
@@ -73,7 +64,6 @@ export default function App() {
     }
   };
 
-  // Helper to update today's stats in multi-day history
   const handleUpdateTodayStats = (updater) => {
     const currentToday = getTodayStats(history, settings.targetFocusHours);
     const updated = typeof updater === 'function' ? updater(currentToday) : updater;
@@ -81,7 +71,11 @@ export default function App() {
     setHistory(newHistory);
   };
 
-  // Main Timer Tick Interval
+  const handleResetAllInsights = () => {
+    const cleanHistory = resetAllHistory();
+    setHistory(cleanHistory);
+  };
+
   useEffect(() => {
     let interval = null;
 
@@ -89,7 +83,6 @@ export default function App() {
       interval = setInterval(() => {
         setTimeLeft((prev) => prev - 1);
 
-        // Deduct 40-min micro break timer when working
         if (mode === 'work') {
           setWellnessTimeLeft((prev) => {
             if (prev <= 1) {
@@ -121,14 +114,12 @@ export default function App() {
 
       const workedMins = Math.round(totalDuration / 60);
 
-      // Update today's stats in history
       handleUpdateTodayStats((prev) => ({
         ...prev,
         completedSessions: (prev.completedSessions || 0) + 1,
         focusMinutes: (prev.focusMinutes || 0) + workedMins
       }));
 
-      // Update active task progress
       if (activeTaskId) {
         setTasks((prevTasks) =>
           prevTasks.map((task) =>
@@ -163,21 +154,16 @@ export default function App() {
     setIsRunning(false);
   };
 
-  const handleToggleTimer = () => {
-    setIsRunning(!isRunning);
-  };
-
+  const handleToggleTimer = () => setIsRunning(!isRunning);
   const handleResetTimer = () => {
     setIsRunning(false);
     setTimeLeft(totalDuration);
   };
-
   const handleSkipTimer = () => {
     if (mode === 'work') switchMode('shortBreak', settings.shortBreakMinutes);
     else switchMode('work', settings.workMinutes);
   };
 
-  // Task Handlers
   const handleAddTask = (newTask) => setTasks([newTask, ...tasks]);
   const handleToggleTask = (id) => {
     setTasks((prev) =>
@@ -194,7 +180,6 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col font-sans transition-colors duration-500">
       
-      {/* Header */}
       <Header
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -204,13 +189,10 @@ export default function App() {
         onOpenWellnessModal={() => setIsWellnessModalOpen(true)}
         wellnessTimeRemaining={wellnessTimeLeft}
         requestNotifications={requestNotifications}
-        onThemeChange={(theme) => setSettings({ ...settings, theme })}
       />
 
-      {/* Main Content Body */}
       <main className="flex-1 max-w-7xl w-full mx-auto p-4 sm:p-6 lg:p-8">
         
-        {/* Tab 1: Main Timer View */}
         {activeTab === 'timer' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             <div className="lg:col-span-7">
@@ -243,19 +225,15 @@ export default function App() {
           </div>
         )}
 
-        {/* Tab 2: Dashboard & Insights View */}
         {activeTab === 'dashboard' && (
           <AnalyticsDashboard
             history={history}
             todayStats={todayStats}
             settings={settings}
-            onUpdateTargetHours={(targetFocusHours) => {
-              setSettings({ ...settings, targetFocusHours });
-            }}
+            onUpdateTargetHours={(targetFocusHours) => setSettings({ ...settings, targetFocusHours })}
           />
         )}
 
-        {/* Tab 3: Interactive Calendar View */}
         {activeTab === 'calendar' && (
           <CalendarView
             history={history}
@@ -263,7 +241,6 @@ export default function App() {
           />
         )}
 
-        {/* Tab 4: Full-width Tasks View */}
         {activeTab === 'tasks' && (
           <div className="max-w-4xl mx-auto">
             <TodoList
@@ -279,7 +256,6 @@ export default function App() {
 
       </main>
 
-      {/* Modals */}
       <WellnessReminder
         isOpen={isWellnessModalOpen}
         onClose={() => setIsWellnessModalOpen(false)}
@@ -300,10 +276,11 @@ export default function App() {
             setTotalDuration(newSecs);
           }
         }}
+        onResetInsights={handleResetAllInsights}
       />
 
-      <footer className="py-4 text-center text-xs text-stone-500 border-t border-white/5 mt-auto">
-        Flocus • Aesthetic 1.5h Deep Work Timer, Dashboard Analytics & 40-min Health Prompts
+      <footer className="py-4 text-center text-xs text-stone-500 border-t border-[#EBE4D8] mt-auto">
+        Flocus • Minimalist 1.5h Deep Work Timer, Analytics & Health Prompts
       </footer>
 
     </div>
